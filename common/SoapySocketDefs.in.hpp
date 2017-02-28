@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2015 Josh Blum
+// Copyright (c) 2015-2017 Josh Blum
 // SPDX-License-Identifier: BSL-1.0
 
 // ** This header should be included first, to avoid compile errors.
@@ -73,6 +73,11 @@ typedef int socklen_t;
 #include <net/if.h> //if_nametoindex
 #endif //HAS_NET_IF_H
 
+#cmakedefine HAS_FCNTL_H
+#ifdef HAS_FCNTL_H
+#include <fcntl.h> //fcntl and constants
+#endif //HAS_FCNTL_H
+
 /***********************************************************************
  * htonll and ntohll for GCC
  **********************************************************************/
@@ -104,8 +109,12 @@ typedef int socklen_t;
  **********************************************************************/
 #ifdef _MSC_VER
 #define SOCKET_ERRNO WSAGetLastError()
+#define SOCKET_EINPROGRESS WSAEWOULDBLOCK
+#define SOCKET_ETIMEDOUT WSAETIMEDOUT
 #else
 #define SOCKET_ERRNO errno
+#define SOCKET_EINPROGRESS EINPROGRESS
+#define SOCKET_ETIMEDOUT ETIMEDOUT
 #endif
 
 /***********************************************************************

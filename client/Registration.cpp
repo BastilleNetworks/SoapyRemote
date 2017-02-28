@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2016 Josh Blum
+// Copyright (c) 2015-2017 Josh Blum
 // SPDX-License-Identifier: BSL-1.0
 
 #include "SoapyClient.hpp"
@@ -11,6 +11,7 @@
 #include <SoapySDR/Registry.hpp>
 #include <SoapySDR/Logger.hpp>
 #include <thread>
+#include <future>
 
 /***********************************************************************
  * Args translator for nested keywords
@@ -77,11 +78,19 @@ static std::vector<SoapySDR::Kwargs> findRemote(const SoapySDR::Kwargs &args)
         const auto ipVerIt = args.find("remote:ipver");
         if (ipVerIt != args.end()) ipVer = std::stoi(ipVerIt->second);
 
+        //spawn futures to connect to each remote
+        std::vector<std::future<SoapySDR::KwargsList>> futures;
         for (const auto &url : SoapySSDPEndpoint::getInstance()->getServerURLs(ipVer))
         {
             auto argsWithURL = args;
             argsWithURL["remote"] = url;
-            const auto subResult = findRemote(argsWithURL);
+            futures.push_back(std::async(std::launch::async, &findRemote, argsWithURL));
+        }
+
+        //wait on all futures for results
+        for (auto &future : futures)
+        {
+            const auto subResult = future.get();
             result.insert(result.end(), subResult.begin(), subResult.end());
         }
 
@@ -98,7 +107,7 @@ static std::vector<SoapySDR::Kwargs> findRemote(const SoapySDR::Kwargs &args)
     //try to connect to the remote server
     SoapySocketSession sess;
     SoapyRPCSocket s;
-    int ret = s.connect(url.toString());
+    int ret = s.connect(url.toString(), SOAPY_REMOTE_SOCKET_TIMEOUT_US);
     if (ret != 0)
     {
         SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyRemote::find() -- connect(%s) FAIL: %s", url.toString().c_str(), s.lastErrorMsg());
