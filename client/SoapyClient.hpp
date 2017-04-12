@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2016 Josh Blum
+// Copyright (c) 2015-2017 Josh Blum
 // Copyright (c) 2016-2016 Bastille Networks
 // SPDX-License-Identifier: BSL-1.0
 
@@ -161,6 +161,12 @@ public:
 
     std::complex<double> getIQBalance(const int direction, const size_t channel) const;
 
+    bool hasFrequencyCorrection(const int direction, const size_t channel) const;
+
+    void setFrequencyCorrection(const int direction, const size_t channel, const double value);
+
+    double getFrequencyCorrection(const int direction, const size_t channel) const;
+
     /*******************************************************************
      * Gain API
      ******************************************************************/
@@ -214,6 +220,8 @@ public:
     double getSampleRate(const int direction, const size_t channel) const;
 
     std::vector<double> listSampleRates(const int direction, const size_t channel) const;
+
+    SoapySDR::RangeList getSampleRateRange(const int direction, const size_t channel) const;
 
     /*******************************************************************
      * Bandwidth API
@@ -355,8 +363,8 @@ public:
 
 private:
     SoapySocketSession _sess;
-    SoapyRPCSocket _sock;
+    mutable SoapyRPCSocket _sock;
     SoapyLogAcceptor *_logAcceptor;
-    std::mutex _mutex;
+    mutable std::mutex _mutex;
     std::string _defaultStreamProt;
 };

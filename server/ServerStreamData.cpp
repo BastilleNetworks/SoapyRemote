@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2016 Josh Blum
+// Copyright (c) 2015-2017 Josh Blum
 // Copyright (c) 2016-2016 Bastille Networks
 // SPDX-License-Identifier: BSL-1.0
 
@@ -190,7 +190,8 @@ void ServerStreamData::sendEndpointWork(void)
         //This is a latency optimization to forward to the host ASAP,
         //but to use the full bandwidth when more data is available.
         //Do not allow this optimization when end of burst or single packet mode to preserve boundaries
-        if (elemsRead != 0 and elemsLeft != 0 and (flags & (SOAPY_SDR_END_BURST | SOAPY_SDR_ONE_PACKET)) == 0)
+        static const int trailingFlags(SOAPY_SDR_END_BURST | SOAPY_SDR_ONE_PACKET | SOAPY_SDR_END_ABRUPT);
+        if (elemsRead != 0 and elemsLeft != 0 and (flags & trailingFlags) == 0)
         {
             int flags1 = 0;
             long long timeNs1 = 0;
@@ -201,6 +202,9 @@ void ServerStreamData::sendEndpointWork(void)
                 elemsLeft -= ret;
                 elemsRead += ret;
             }
+
+            //include trailing flags that come from the second read
+            flags |= (flags1 & trailingFlags);
         }
 
         //release the buffer with flags and time from the first read

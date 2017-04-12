@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2015 Josh Blum
+// Copyright (c) 2015-2017 Josh Blum
 // SPDX-License-Identifier: BSL-1.0
 
 #include "ClientStreamData.hpp"
@@ -51,6 +51,65 @@ void ClientStreamData::convertRecvBuffs(void * const *buffs, const size_t numEle
             for (size_t j = 0; j < numElems*2; j++)
             {
                 out[j] = float(in[j])*scale;
+            }
+        }
+    }
+    break;
+
+    ///////////////////////////
+    case CONVERT_CF32_CS12:
+    ///////////////////////////
+    {
+        const float scale = float(1.0/scaleFactor);
+        for (size_t i = 0; i < recvBuffs.size(); i++)
+        {
+            auto in = (uint8_t *)recvBuffs[i];
+            auto out = (float *)buffs[i];
+            for (size_t j = 0; j < numElems; j++)
+            {
+                uint16_t part0 = uint16_t(*(in++));
+                uint16_t part1 = uint16_t(*(in++));
+                uint16_t part2 = uint16_t(*(in++));
+                int16_t i = int16_t((part1 << 12) | (part0 << 4));
+                int16_t q = int16_t((part2 << 8) | (part1 & 0xf0));
+                *(out++) = float(i)*scale;
+                *(out++) = float(q)*scale;
+            }
+        }
+    }
+    break;
+
+    ///////////////////////////
+    case CONVERT_CS16_CS12:
+    ///////////////////////////
+    {
+        for (size_t i = 0; i < recvBuffs.size(); i++)
+        {
+            auto in = (uint8_t *)recvBuffs[i];
+            auto out = (int16_t *)buffs[i];
+            for (size_t j = 0; j < numElems; j++)
+            {
+                uint16_t part0 = uint16_t(*(in++));
+                uint16_t part1 = uint16_t(*(in++));
+                uint16_t part2 = uint16_t(*(in++));
+                *(out++) = int16_t((part1 << 12) | (part0 << 4));
+                *(out++) = int16_t((part2 << 8) | (part1 & 0xf0));
+            }
+        }
+    }
+    break;
+
+    ///////////////////////////
+    case CONVERT_CS16_CS8:
+    ///////////////////////////
+    {
+        for (size_t i = 0; i < recvBuffs.size(); i++)
+        {
+            auto in = (int8_t *)recvBuffs[i];
+            auto out = (int16_t *)buffs[i];
+            for (size_t j = 0; j < numElems*2; j++)
+            {
+                out[j] = int16_t(in[j]);
             }
         }
     }
@@ -125,6 +184,63 @@ void ClientStreamData::convertSendBuffs(const void * const *buffs, const size_t 
             for (size_t j = 0; j < numElems*2; j++)
             {
                 out[j] = short(in[j]*scale);
+            }
+        }
+    }
+    break;
+
+    ///////////////////////////
+    case CONVERT_CF32_CS12:
+    ///////////////////////////
+    {
+        const float scale = float(scaleFactor);
+        for (size_t i = 0; i < sendBuffs.size(); i++)
+        {
+            auto in = (float *)buffs[i];
+            auto out = (uint8_t *)sendBuffs[i];
+            for (size_t j = 0; j < numElems; j++)
+            {
+                uint16_t i = uint16_t(*(in++)*scale);
+                uint16_t q = uint16_t(*(in++)*scale);
+                *(out++) = uint8_t(i >> 4);
+                *(out++) = uint8_t((q & 0xf0)|(i >> 12));
+                *(out++) = uint8_t(q >> 8);
+            }
+        }
+    }
+    break;
+
+    ///////////////////////////
+    case CONVERT_CS16_CS12:
+    ///////////////////////////
+    {
+        for (size_t i = 0; i < sendBuffs.size(); i++)
+        {
+            auto in = (int16_t *)buffs[i];
+            auto out = (uint8_t *)sendBuffs[i];
+            for (size_t j = 0; j < numElems; j++)
+            {
+                uint16_t i = uint16_t(*(in++));
+                uint16_t q = uint16_t(*(in++));
+                *(out++) = uint8_t(i >> 4);
+                *(out++) = uint8_t((q & 0xf0)|(i >> 12));
+                *(out++) = uint8_t(q >> 8);
+            }
+        }
+    }
+    break;
+
+    ///////////////////////////
+    case CONVERT_CS16_CS8:
+    ///////////////////////////
+    {
+        for (size_t i = 0; i < sendBuffs.size(); i++)
+        {
+            auto in = (int16_t *)buffs[i];
+            auto out = (int8_t *)sendBuffs[i];
+            for (size_t j = 0; j < numElems*2; j++)
+            {
+                out[j] = int8_t(in[j]);
             }
         }
     }
