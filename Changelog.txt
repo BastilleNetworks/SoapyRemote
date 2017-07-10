@@ -1,4 +1,18 @@
-Release 0.4.0 (pending)
+Release 0.4.2 (pending)
+==========================
+
+- Fixed timeout problem in log acceptor receiver loop
+- Added server check for slow calls and longer timeout
+  - This also resolves timeout errors for lengthy calls
+- Added network-online.target for systemd service script
+
+Release 0.4.1 (2017-06-08)
+==========================
+
+- Added timeout for logger connect and control unpacker
+- Fixed error log formatting in the client log acceptor
+
+Release 0.4.0 (2017-04-29)
 ==========================
 
 - Added support for frequency corrections for fine adjustments

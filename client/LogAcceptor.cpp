@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2015 Josh Blum
+// Copyright (c) 2015-2017 Josh Blum
 // SPDX-License-Identifier: BSL-1.0
 
 #include "LogAcceptor.hpp"
@@ -47,7 +47,9 @@ struct LogAcceptorThreadData
 void LogAcceptorThreadData::activate(void)
 {
     client = SoapyRPCSocket();
-    int ret = client.connect(url);
+    //specify a timeout on connect because the link may be lost
+    //when the thread attempts to re-establish a connection
+    int ret = client.connect(url, SOAPY_REMOTE_SOCKET_TIMEOUT_US);
     if (ret != 0)
     {
         SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::connect() FAIL: %s", client.lastErrorMsg());
@@ -67,7 +69,7 @@ void LogAcceptorThreadData::activate(void)
     }
     catch (const std::exception &ex)
     {
-        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::reactivate() ", ex.what());
+        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::activate() FAIL: %s", ex.what());
         done = true;
     }
 }
@@ -88,7 +90,7 @@ void LogAcceptorThreadData::shutdown(void)
     }
     catch (const std::exception &ex)
     {
-        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::shutdown() ", ex.what());
+        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::shutdown() FAIL: %s", ex.what());
     }
 
     //the thread will exit due to the requests above
@@ -106,7 +108,7 @@ void LogAcceptorThreadData::handlerLoop(void)
         //loop while active to relay messages to logger
         while (true)
         {
-            SoapyRPCUnpacker unpackerLogMsg(client);
+            SoapyRPCUnpacker unpackerLogMsg(client, true, -1/*no timeout*/);
             if (unpackerLogMsg.done()) break; //got stop reply
             char logLevel = 0;
             std::string message;
@@ -117,7 +119,7 @@ void LogAcceptorThreadData::handlerLoop(void)
     }
     catch (const std::exception &ex)
     {
-        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::handlerLoop() ", ex.what());
+        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLogAcceptor::handlerLoop() FAIL: %s", ex.what());
     }
 
     done = true;

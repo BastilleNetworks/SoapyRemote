@@ -5,6 +5,7 @@
 #include "SoapyRemoteDefs.hpp"
 #include "SoapyRPCSocket.hpp"
 #include "SoapyRPCUnpacker.hpp"
+#include "SoapyRPCPacker.hpp"
 #include <SoapySDR/Logger.hpp>
 #include <SoapySDR/Version.hpp> //feature defines
 #include <cfloat> //DBL_MANT_DIG
@@ -14,13 +15,41 @@
 #include <algorithm> //min, max
 #include <stdexcept>
 
-SoapyRPCUnpacker::SoapyRPCUnpacker(SoapyRPCSocket &sock, const bool autoRecv):
+static void testServerConnection(const std::string &url)
+{
+    SoapyRPCSocket s;
+    int ret = s.connect(url, SOAPY_REMOTE_SOCKET_TIMEOUT_US);
+    if (ret != 0) throw std::runtime_error("SoapyRPCUnpacker::recv() FAIL test server connection: "+std::string(s.lastErrorMsg()));
+    SoapyRPCPacker packerHangup(s);
+    packerHangup & SOAPY_REMOTE_HANGUP;
+    packerHangup();
+    s.selectRecv(SOAPY_REMOTE_SOCKET_TIMEOUT_US);
+}
+
+SoapyRPCUnpacker::SoapyRPCUnpacker(SoapyRPCSocket &sock, const bool autoRecv, const long timeoutUs):
     _sock(sock),
     _message(NULL),
     _offset(0),
     _capacity(0),
     _remoteRPCVersion(SoapyRPCVersion)
 {
+    //auto recv expects a reply packet within a reasonable time window
+    //or else the link might be down, in which case we throw an error.
+    //Calls are allowed to take a long time (up to 31 seconds).
+    //However, we continually check that the server is active
+    //so that we can tear down immediately if the server goes away.
+    if (timeoutUs >= 0)
+    {
+        auto subTimeout = std::min<long>(timeoutUs, 1000000); //1 second
+        while (true)
+        {
+            if (_sock.selectRecv(subTimeout)) break;
+            testServerConnection(_sock.getpeername());
+            subTimeout *= 2; //server is up, increase timeout check
+            if (subTimeout >= timeoutUs) throw std::runtime_error("SoapyRPCUnpacker::recv() TIMEOUT: "+std::string(_sock.lastErrorMsg()));
+        }
+    }
+
     if (autoRecv) this->recv();
 }
 
